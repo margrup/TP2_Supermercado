@@ -139,9 +139,8 @@ for p1 in productos:
             par = tuple(sorted([p1["_id"], p2["_id"]]))
             if par not in sustitutos_pares:
                 sustitutos_pares.add(par)
-                # Ambas direcciones: A→B y B→A
+                # Una sola direccion (siempre id1 < id2) para evitar duplicados en Neo4j
                 sustitutos.append({"producto_id_1": p1["_id"], "producto_id_2": p2["_id"]})
-                sustitutos.append({"producto_id_1": p2["_id"], "producto_id_2": p1["_id"]})
 
 # --- COMPLEMENTARIOS (pares con sentido comercial entre categorías relacionadas) ---
 # Se generan ~30 pares fuertes que se inyectarán con alta frecuencia en los tickets,
@@ -197,7 +196,7 @@ for p in productos:
             "sucursal":                   s["_id"],
             "cantidad_disponible":        cantidad_disp,
             "cantidad_minima":            cantidad_min,
-            "fecha_ultima_actualizacion": HOY.strftime("%Y-%m-%dT%H:%M:%S")
+            "fecha_ultima_actualizacion": {"$date": HOY.strftime("%Y-%m-%dT%H:%M:%SZ")}
         })
         stock_total_por_producto[p["_id"]] += cantidad_disp
 
@@ -269,7 +268,7 @@ for i in range(1, VOL_TICKETS + 1):
     tickets.append({
         "_id":          t_id,
         "sucursal":     sucursal_id,
-        "fecha_hora":   fecha_hora.strftime("%Y-%m-%dT%H:%M:%S"),
+        "fecha_hora":   {"$date": fecha_hora.strftime("%Y-%m-%dT%H:%M:%SZ")},
         "cajero":       fake.name(),
         "medio_pago":   random.choice(["Efectivo", "Debito", "Credito", "QR", "MercadoPago"]),
         "total":        round(total_ticket, 2),
@@ -296,8 +295,8 @@ for i in range(1, 11):
         "tipo":                   random.choice(["2x1", "70% 2da Unidad", "3x2", "Descuento Bancario"]),
         "productos_involucrados": [p["_id"] for p in random.sample(productos, random.randint(2, 6))],
         "sucursales_aplicables":  [s["_id"] for s in random.sample(sucursales, random.randint(2, 5))],
-        "vigencia_inicio":        inicio.strftime("%Y-%m-%d"),
-        "vigencia_fin":           fin.strftime("%Y-%m-%d"),
+        "vigencia_inicio":        {"$date": inicio.strftime("%Y-%m-%dT00:00:00Z")},
+        "vigencia_fin":           {"$date": fin.strftime("%Y-%m-%dT23:59:59Z")},
         "condicion_activacion":   random.choice(["Socio Club", "App", "Tarjeta Banco Nacion", "Sin condicion"])
     })
 
@@ -406,7 +405,7 @@ exportar_csv(complementarios,'neo4j_rel_complementario_a.csv', ['producto_id_1',
 # ==========================================
 # RESUMEN
 # ==========================================
-activas_hoy = sum(1 for p in promociones if p["vigencia_fin"] >= HOY.strftime("%Y-%m-%d"))
+activas_hoy = sum(1 for p in promociones if p["vigencia_fin"]["$date"] >= HOY.strftime("%Y-%m-%d"))
 
 print("\n=== RESUMEN DE DATOS GENERADOS ===")
 print(f"  Productos        : {len(productos)}")
@@ -415,7 +414,7 @@ print(f"  Proveedores      : {len(proveedores)}")
 print(f"  Registros stock  : {len(stock)}")
 print(f"  Tickets          : {len(tickets)}")
 print(f"  Líneas totales   : {len(neo4j_contiene)}")
-print(f"  Sustitutos       : {len(sustitutos) // 2} pares ({len(sustitutos)} relaciones bidireccionales)")
+print(f"  Sustitutos       : {len(sustitutos)} pares (unidireccionales)")
 print(f"  Complementarios  : {len(complementarios)} pares")
 print(f"  Promociones      : {len(promociones)} total — {activas_hoy} activas hoy")
 print("\n=== ARCHIVOS MONGODB ===")

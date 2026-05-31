@@ -45,7 +45,7 @@ def op1_dashboard(conexiones, sucursal_id):
                 "horario": sucursal.get("horario_atencion"),
             }
 
-        hoy = datetime.now().strftime("%Y-%m-%d")
+        hoy = datetime.now()
         promociones = list(mongo["Promociones"].find({
             "sucursales_aplicables": sucursal_id,
             "vigencia_inicio": {"$lte": hoy},
@@ -55,6 +55,9 @@ def op1_dashboard(conexiones, sucursal_id):
             {"id": p["_id"], "tipo": p["tipo"], "condicion": p.get("condicion_activacion")}
             for p in promociones
         ]
+
+        proveedores = list(mongo["Proveedores"].find({}, {"_id": 1, "nombre": 1, "condiciones_pago": 1}))
+        resultado["proveedores"] = proveedores
     except Exception as e:
         resultado["errores"].append(f"MongoDB: {e}")
 
@@ -128,7 +131,7 @@ def op1_dashboard(conexiones, sucursal_id):
             with neo4j.session() as session:
                 res = session.run("""
                     MATCH (a:Producto)-[r:CO_COMPRA]-(b:Producto)
-                    WHERE id(a) < id(b)
+                    WHERE elementId(a) < elementId(b)
                     RETURN a.nombre AS prod1, b.nombre AS prod2,
                         r.frecuencia AS frecuencia
                     ORDER BY r.frecuencia DESC LIMIT 5
@@ -264,7 +267,7 @@ def op2_registrar_venta(conexiones, sucursal_id, cajero, medio_pago, items):
                 a, b = (id1, id2) if id1 < id2 else (id2, id1)
                 session.run("""
                     MATCH (a:Producto {id: $a}), (b:Producto {id: $b})
-                    MERGE (a)-[r:CO_COMPRA]-(b)
+                    MERGE (a)-[r:CO_COMPRA]->(b)
                     ON CREATE SET r.frecuencia = 1
                     ON MATCH  SET r.frecuencia = r.frecuencia + 1
                 """, a=a, b=b)
@@ -288,7 +291,7 @@ def op2_registrar_venta(conexiones, sucursal_id, cajero, medio_pago, items):
                     {"_id": stock_doc["_id"]},
                     {"$set": {
                         "cantidad_disponible":        max(0, nueva_cant),
-                        "fecha_ultima_actualizacion": ahora.isoformat(),
+                        "fecha_ultima_actualizacion": ahora,
                     }}
                 )
                 if nueva_cant < stock_doc["cantidad_minima"]:
@@ -354,23 +357,29 @@ def op3_reporte_categorias(conexiones, fecha_inicio_str, fecha_fin_str):
     # CORRECCION: siempre se pasa producto_id + anio_mes (PK compuesta obligatoria)
     ventas_por_prod = {}
     try:
+        query_str = """
+            SELECT cantidad, precio_unitario, ticket_timestamp
+            FROM ventas_producto
+            WHERE producto_id=%s AND anio_mes=%s
+        """
+        futuros = []
         for prod_id in prod_map:
             for mes in meses:
-                rows = cassandra.execute("""
-                    SELECT cantidad, precio_unitario, ticket_timestamp
-                    FROM ventas_producto
-                    WHERE producto_id=%s AND anio_mes=%s
-                """, (prod_id, mes))
-                for row in rows:
-                    ts = row.ticket_timestamp
-                    if fi <= ts <= ff + timedelta(days=1):
-                        if prod_id not in ventas_por_prod:
-                            ventas_por_prod[prod_id] = {"unidades": 0.0, "pesos": 0.0}
-                        # CORRECCION: Decimal -> float
-                        cant   = float(row.cantidad)
-                        precio = float(row.precio_unitario)
-                        ventas_por_prod[prod_id]["unidades"] += cant
-                        ventas_por_prod[prod_id]["pesos"]    += cant * precio
+                futuro = cassandra.execute_async(query_str, (prod_id, mes))
+                futuros.append((prod_id, futuro))
+                
+        for prod_id, futuro in futuros:
+            rows = futuro.result()
+            for row in rows:
+                ts = row.ticket_timestamp
+                if fi <= ts <= ff + timedelta(days=1):
+                    if prod_id not in ventas_por_prod:
+                        ventas_por_prod[prod_id] = {"unidades": 0.0, "pesos": 0.0}
+                    # CORRECCION: Decimal -> float
+                    cant   = float(row.cantidad)
+                    precio = float(row.precio_unitario)
+                    ventas_por_prod[prod_id]["unidades"] += cant
+                    ventas_por_prod[prod_id]["pesos"]    += cant * precio
     except Exception as e:
         resultado["errores"].append(f"Cassandra: {e}")
 
@@ -436,7 +445,7 @@ def op4_recomendacion_reposicion(conexiones, sucursal_id):
         try:
             with neo4j.session() as session:
                 res = session.run("""
-                    MATCH (p:Producto {id: $prod_id})-[:SUSTITUTO_DE]->(s:Producto)
+                    MATCH (p:Producto {id: $prod_id})-[:SUSTITUTO_DE]-(s:Producto)
                     WHERE s.tiene_stock = 'TRUE'
                     OPTIONAL MATCH (p)-[r:CO_COMPRA]-(s)
                     RETURN s.id     AS id,
@@ -558,7 +567,7 @@ def op5_cierre_caja(conexiones, sucursal_id, fecha_str):
             "ticket_promedio": consolidado["ticket_promedio"],
             "hora_pico":       consolidado["hora_pico"],
             "top_productos":   consolidado["top_10_productos"],
-            "generado_en":     datetime.now().isoformat(),
+            "generado_en":     datetime.now(),
         }
         mongo["ReportesDiarios"].replace_one(
             {"_id": reporte_doc["_id"]},
@@ -576,7 +585,7 @@ def op5_cierre_caja(conexiones, sucursal_id, fecha_str):
             for (id1, id2), freq in pares_cocompra.items():
                 session.run("""
                     MATCH (a:Producto {id: $id1}), (b:Producto {id: $id2})
-                    MERGE (a)-[r:CO_COMPRA]-(b)
+                    MERGE (a)-[r:CO_COMPRA]->(b)
                     ON CREATE SET r.frecuencia = $freq
                     ON MATCH  SET r.frecuencia = r.frecuencia + $freq
                 """, id1=id1, id2=id2, freq=freq)

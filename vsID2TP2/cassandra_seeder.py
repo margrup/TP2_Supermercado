@@ -96,7 +96,9 @@ def poblar_cassandra():
     total_lineas  = 0
 
     for t in tickets:
-        ts        = datetime.fromisoformat(t["fecha_hora"])
+        fecha_raw = t["fecha_hora"]
+        fecha_str = fecha_raw["$date"].replace("Z", "") if isinstance(fecha_raw, dict) else fecha_raw
+        ts        = datetime.fromisoformat(fecha_str)
         fecha_cas = ts.date()
         anio_mes  = ts.strftime("%Y-%m")
 
@@ -153,7 +155,9 @@ def poblar_cassandra():
     alertas_cont = 0
 
     for s in stock:
-        ts_stock = datetime.fromisoformat(s["fecha_ultima_actualizacion"])
+        fecha_raw = s["fecha_ultima_actualizacion"]
+        fecha_str = fecha_raw["$date"].replace("Z", "") if isinstance(fecha_raw, dict) else fecha_raw
+        ts_stock = datetime.fromisoformat(fecha_str)
 
         # Evento de carga inicial para cada producto-sucursal
         session.execute(ps_stock_evento, (
