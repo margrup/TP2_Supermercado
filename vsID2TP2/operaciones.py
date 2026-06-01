@@ -446,7 +446,7 @@ def op4_recomendacion_reposicion(conexiones, sucursal_id):
             with neo4j.session() as session:
                 res = session.run("""
                     MATCH (p:Producto {id: $prod_id})-[:SUSTITUTO_DE]-(s:Producto)
-                    WHERE s.tiene_stock = 'TRUE'
+                    WHERE s.tiene_stock = true
                     OPTIONAL MATCH (p)-[r:CO_COMPRA]-(s)
                     RETURN s.id     AS id,
                         s.nombre AS nombre,

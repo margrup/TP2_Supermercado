@@ -190,13 +190,15 @@ for p in productos:
         else:
             cantidad_disp = random.randint(cantidad_min, 500)
 
+        # Restamos entre 1 y 30 días para que no tengan todos el mismo timestamp
+        fecha_act = HOY - timedelta(days=random.randint(1, 30), hours=random.randint(0, 23))
         stock.append({
             "_id":                        f"STK_{p['_id']}_{s['_id']}",
             "producto":                   p["_id"],
             "sucursal":                   s["_id"],
             "cantidad_disponible":        cantidad_disp,
             "cantidad_minima":            cantidad_min,
-            "fecha_ultima_actualizacion": {"$date": HOY.strftime("%Y-%m-%dT%H:%M:%SZ")}
+            "fecha_ultima_actualizacion": {"$date": fecha_act.strftime("%Y-%m-%dT%H:%M:%SZ")}
         })
         stock_total_por_producto[p["_id"]] += cantidad_disp
 

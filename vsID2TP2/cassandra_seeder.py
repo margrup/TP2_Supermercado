@@ -33,7 +33,6 @@ def poblar_cassandra():
         print("[ERROR] Sin conexión a Cassandra. Abortando.")
         return
 
-    # --- Lectura de archivos del TP1 ---
     print("[INFO] Leyendo archivos de datos...")
     try:
         tickets   = leer_jsonl("mongo_tickets.jsonl")
@@ -43,6 +42,15 @@ def poblar_cassandra():
         print(f"[ERROR] Archivo no encontrado: {e}")
         print("        Ejecutá primero generar_datos.py para crear los archivos en data/")
         return
+
+    # Vaciar tablas para evitar datos acumulados de ejecuciones anteriores
+    print("[INFO] Truncando tablas antiguas (Limpieza)...")
+    tablas = ['ventas_sucursal', 'ventas_producto', 'metricas_horarias', 'alertas_stock', 'stock_eventos']
+    for t in tablas:
+        try:
+            session.execute(f"TRUNCATE {t}")
+        except Exception as e:
+            print(f"[WARN] No se pudo truncar {t}: {e}")
 
     print(f"         tickets  : {len(tickets)}")
     print(f"         stock    : {len(stock)}")
@@ -119,6 +127,14 @@ def poblar_cassandra():
                 t["sucursal"],
                 Decimal(str(linea["cantidad"])),
                 Decimal(str(linea["precio_unitario"]))
+            ))
+            
+            # Registrar también el movimiento de salida en el historial de stock
+            session.execute(ps_stock_evento, (
+                t["sucursal"], linea["producto"],
+                ts, "SALIDA_VENTA",
+                Decimal(str(linea["cantidad"])),
+                t["cajero"], "Venta en mostrador"
             ))
             total_lineas += 1
 
