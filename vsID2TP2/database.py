@@ -36,6 +36,14 @@ def get_neo4j_driver():
         return None
 
 
+class LineaVenta(object):
+    def __init__(self, producto_id, cantidad, precio_unitario, descuento_aplicado):
+        self.producto_id = producto_id
+        self.cantidad = cantidad
+        self.precio_unitario = precio_unitario
+        self.descuento_aplicado = descuento_aplicado
+
+
 def get_cassandra_session():
     """Conecta a Cassandra y devuelve la sesion con el keyspace activo."""
     try:
@@ -44,6 +52,13 @@ def get_cassandra_session():
         cluster  = Cluster(nodes)
         session  = cluster.connect()
         session.set_keyspace(keyspace)
+        
+        # Registrar el UDT linea_venta
+        try:
+            cluster.register_user_type(keyspace, 'linea_venta', LineaVenta)
+        except Exception as e:
+            print(f"[WARN] No se pudo registrar el UDT 'linea_venta': {e}")
+            
         print(f"[OK] Conectado a Cassandra (Keyspace: {keyspace}) con exito.")
         return session
     except Exception as e:

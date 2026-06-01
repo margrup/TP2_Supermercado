@@ -10,7 +10,7 @@ import json
 import os
 from datetime import datetime
 from decimal import Decimal
-from database import get_cassandra_session
+from database import get_cassandra_session, LineaVenta
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
@@ -110,15 +110,20 @@ def poblar_cassandra():
         fecha_cas = ts.date()
         anio_mes  = ts.strftime("%Y-%m")
 
-        lineas_str = [
-            f"{l['producto']}|{l['cantidad']}|{l['precio_unitario']}|{l['descuento_aplicado']}"
+        lineas_udt = [
+            LineaVenta(
+                producto_id=l['producto'],
+                cantidad=Decimal(str(l['cantidad'])),
+                precio_unitario=Decimal(str(l['precio_unitario'])),
+                descuento_aplicado=Decimal(str(l.get('descuento_aplicado', 0.0)))
+            )
             for l in t["lineas_venta"]
         ]
 
         session.execute(ps_ventas_suc, (
             t["sucursal"], fecha_cas, ts, t["_id"],
             t["cajero"], t["medio_pago"],
-            Decimal(str(t["total"])), lineas_str
+            Decimal(str(t["total"])), lineas_udt
         ))
 
         for linea in t["lineas_venta"]:

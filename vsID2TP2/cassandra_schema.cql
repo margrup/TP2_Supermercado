@@ -16,6 +16,18 @@ CREATE KEYSPACE IF NOT EXISTS tp_supermercado
 USE tp_supermercado;
 
 -- -------------------------------------------------------------
+-- UDT: linea_venta
+-- Caso de uso: estructura fuertemente tipada para las líneas de venta
+-- dentro de un ticket. Evita errores de parseo y formato.
+-- -------------------------------------------------------------
+CREATE TYPE IF NOT EXISTS linea_venta (
+    producto_id TEXT,
+    cantidad DECIMAL,
+    precio_unitario DECIMAL,
+    descuento_aplicado DECIMAL
+);
+
+-- -------------------------------------------------------------
 -- Tabla 1: ventas_sucursal
 -- Caso de uso: registro de cada ticket por sucursal y fecha.
 --
@@ -36,9 +48,14 @@ CREATE TABLE IF NOT EXISTS ventas_sucursal (
     cajero           TEXT,
     medio_pago       TEXT,
     total            DECIMAL,
-    lineas_venta     LIST<TEXT>,
+    lineas_venta     LIST<frozen<linea_venta>>,
     PRIMARY KEY ((sucursal_id, fecha), ticket_timestamp, ticket_id)
-) WITH CLUSTERING ORDER BY (ticket_timestamp DESC, ticket_id ASC);
+) WITH CLUSTERING ORDER BY (ticket_timestamp DESC, ticket_id ASC)
+AND compaction = {
+    'class': 'TimeWindowCompactionStrategy',
+    'compaction_window_unit': 'DAYS',
+    'compaction_window_size': 1
+};
 
 
 -- -------------------------------------------------------------
@@ -62,7 +79,12 @@ CREATE TABLE IF NOT EXISTS ventas_producto (
     cantidad         DECIMAL,
     precio_unitario  DECIMAL,
     PRIMARY KEY ((producto_id, anio_mes), ticket_timestamp, ticket_id)
-) WITH CLUSTERING ORDER BY (ticket_timestamp DESC, ticket_id ASC);
+) WITH CLUSTERING ORDER BY (ticket_timestamp DESC, ticket_id ASC)
+AND compaction = {
+    'class': 'TimeWindowCompactionStrategy',
+    'compaction_window_unit': 'DAYS',
+    'compaction_window_size': 1
+};
 
 
 -- -------------------------------------------------------------
@@ -85,7 +107,12 @@ CREATE TABLE IF NOT EXISTS metricas_horarias (
     cantidad_tickets INT,
     ticket_promedio  DECIMAL,
     PRIMARY KEY ((sucursal_id, fecha), hora)
-) WITH CLUSTERING ORDER BY (hora ASC);
+) WITH CLUSTERING ORDER BY (hora ASC)
+AND compaction = {
+    'class': 'TimeWindowCompactionStrategy',
+    'compaction_window_unit': 'DAYS',
+    'compaction_window_size': 1
+};
 
 
 -- -------------------------------------------------------------
@@ -113,7 +140,12 @@ CREATE TABLE IF NOT EXISTS stock_eventos (
     cajero_id        TEXT,
     motivo           TEXT,
     PRIMARY KEY ((sucursal_id, producto_id), evento_timestamp)
-) WITH CLUSTERING ORDER BY (evento_timestamp DESC);
+) WITH CLUSTERING ORDER BY (evento_timestamp DESC)
+AND compaction = {
+    'class': 'TimeWindowCompactionStrategy',
+    'compaction_window_unit': 'DAYS',
+    'compaction_window_size': 1
+};
 
 
 -- -------------------------------------------------------------

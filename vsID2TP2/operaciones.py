@@ -17,6 +17,7 @@ import uuid
 from collections import Counter
 from datetime import datetime, timedelta
 from decimal import Decimal
+from database import LineaVenta
 
 
 # =============================================================
@@ -191,9 +192,13 @@ def op2_registrar_venta(conexiones, sucursal_id, cajero, medio_pago, items):
 
     # === CASSANDRA ===
     try:
-        lineas_str = [
-            f"{i['producto_id']}|{i['cantidad']}|"
-            f"{productos_data[i['producto_id']]['precio_venta']}|0.0"
+        lineas_udt = [
+            LineaVenta(
+                producto_id=i['producto_id'],
+                cantidad=Decimal(str(i['cantidad'])),
+                precio_unitario=Decimal(str(productos_data[i['producto_id']]['precio_venta'])),
+                descuento_aplicado=Decimal("0.0")
+            )
             for i in items
         ]
         cassandra.execute("""
@@ -202,7 +207,7 @@ def op2_registrar_venta(conexiones, sucursal_id, cajero, medio_pago, items):
             cajero, medio_pago, total, lineas_venta)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, (sucursal_id, fecha_cas, ahora, ticket_id,
-            cajero, medio_pago, Decimal(str(round(total, 2))), lineas_str))
+            cajero, medio_pago, Decimal(str(round(total, 2))), lineas_udt))
 
         for item in items:
             prod = productos_data[item["producto_id"]]
@@ -528,12 +533,10 @@ def op5_cierre_caja(conexiones, sucursal_id, fecha_str):
         for row in rows:
             ids_en_ticket = []
             for linea in (row.lineas_venta or []):
-                partes = linea.split("|")
-                if partes:
-                    prod_id  = partes[0]
-                    cantidad = float(partes[1]) if len(partes) > 1 else 1.0
-                    producto_counter[prod_id] += cantidad
-                    ids_en_ticket.append(prod_id)
+                prod_id  = linea.producto_id
+                cantidad = float(linea.cantidad)
+                producto_counter[prod_id] += cantidad
+                ids_en_ticket.append(prod_id)
 
             for i in range(len(ids_en_ticket)):
                 for j in range(i + 1, len(ids_en_ticket)):
