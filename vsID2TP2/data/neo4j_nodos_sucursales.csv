@@ -1,0 +1,6 @@
+id,nombre,ciudad,zona
+SUC_001,Supermercado San Juan,Buenos Aires,Norte
+SUC_002,Supermercado Resistencia,Buenos Aires,Sur
+SUC_003,Supermercado Comodoro Rivadavia,Buenos Aires,Este
+SUC_004,Supermercado Santiago del Estero,Buenos Aires,Oeste
+SUC_005,Supermercado Rawson,Buenos Aires,Centro

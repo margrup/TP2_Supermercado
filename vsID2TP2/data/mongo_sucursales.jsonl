@@ -1,0 +1,5 @@
+{"_id": "SUC_001", "nombre": "Supermercado San Juan", "direccion": "Avenida San Ferando del Valle de Catamarca N° 3715", "ciudad": "Buenos Aires", "zona": "Norte", "superficie": 717, "horario_atencion": "08:00 - 22:00"}
+{"_id": "SUC_002", "nombre": "Supermercado Resistencia", "direccion": "Avenida 8 N° 75", "ciudad": "Buenos Aires", "zona": "Sur", "superficie": 1014, "horario_atencion": "08:00 - 22:00"}
+{"_id": "SUC_003", "nombre": "Supermercado Comodoro Rivadavia", "direccion": "Av. La Plata N° 797", "ciudad": "Buenos Aires", "zona": "Este", "superficie": 1895, "horario_atencion": "08:00 - 22:00"}
+{"_id": "SUC_004", "nombre": "Supermercado Santiago del Estero", "direccion": "Calle 7 N° 72", "ciudad": "Buenos Aires", "zona": "Oeste", "superficie": 961, "horario_atencion": "08:00 - 22:00"}
+{"_id": "SUC_005", "nombre": "Supermercado Rawson", "direccion": "Avenida J.M. de Rosas N° 285", "ciudad": "Buenos Aires", "zona": "Centro", "superficie": 607, "horario_atencion": "08:00 - 22:00"}

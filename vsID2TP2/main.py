@@ -2,6 +2,7 @@
 main.py — Menú interactivo del sistema poliglota.
 Ejecutar: python main.py
 """
+"docker exec -it cassandra-tp2 cqlsh USE tp_supermercado;"
 import json
 from datetime import datetime
 from database import conectar_todo
